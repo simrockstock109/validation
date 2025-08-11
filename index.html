@@ -1,0 +1,1449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deal Structure & Bank Profile Validator</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for Inter font */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            color: #374151;
+        }
+        /* Hide scrollbar for a cleaner look */
+        ::-webkit-scrollbar {
+            display: none;
+        }
+        /* For Firefox */
+        html {
+            scrollbar-width: none;
+        }
+        .modal-loader {
+            position: absolute; 
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            backdrop-filter: blur(4px);
+            border-radius: 0.5rem;
+        }
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9990;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .modal.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
+            position: relative; /* Needed for the loader positioning */
+        }
+        .modal.show .modal-content {
+            transform: scale(1);
+        }
+        .rule-editor .hidden {
+            display: none;
+        }
+        .rule-sub-fields.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        .disabled-section {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col p-4 bg-gray-100">
+
+    <header class="text-center mb-8">
+        <h1 class="text-4xl font-bold text-blue-700 mb-2">Deal Validator</h1>
+        <p class="text-lg text-gray-600">Compare customer deal structures against bank guidelines.</p>
+    </header>
+
+    <main class="flex flex-col lg:flex-row flex-grow gap-6 max-w-7xl mx-auto w-full">
+        <!-- Customer Profile Section -->
+        <section class="flex-1 bg-white p-6 rounded-lg shadow-md mb-6 lg:mb-0">
+             <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <h2 class="text-2xl font-semibold text-gray-800">Customer Profile</h2>
+                 <div class="flex items-center gap-4">
+                    <button type="button" id="pasteParseBtn" class="py-1 px-3 bg-indigo-600 text-white rounded-md text-xs hover:bg-indigo-700">Paste & Parse Deal</button>
+                    <div class="flex items-center">
+                        <span class="text-sm font-medium text-gray-700 mr-3">Used</span>
+                        <label for="vehicleTypeToggle" class="inline-flex relative items-center cursor-pointer">
+                            <input type="checkbox" value="" id="vehicleTypeToggle" class="sr-only peer" checked>
+                            <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                        <span class="text-sm font-medium text-gray-700 ml-3">New</span>
+                    </div>
+                </div>
+            </div>
+            
+            <form id="customerProfileForm" class="space-y-6">
+                <input type="hidden" id="customerDealId">
+                
+                <!-- Deal Information -->
+                <div class="p-4 border border-gray-200 rounded-lg">
+                     <h3 class="text-lg font-medium text-gray-800 mb-2">Deal Information</h3>
+                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div>
+                            <label for="dealDate" class="block text-sm font-medium text-gray-700">1. Date</label>
+                            <input type="text" id="dealDate" readonly
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 focus:outline-none sm:text-sm">
+                        </div>
+                         <div>
+                            <label for="customerName" class="block text-sm font-medium text-gray-700">2. Customer Name</label>
+                            <input type="text" id="customerName" placeholder="John Doe" required
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        </div>
+                         <div>
+                            <label for="creditScore" class="block text-sm font-medium text-gray-700">3. Credit Score</label>
+                            <input type="number" id="creditScore" placeholder="720" required
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        </div>
+                         <div>
+                            <label for="vehicleYear" class="block text-sm font-medium text-gray-700">4. Vehicle Year</label>
+                            <input type="number" id="vehicleYear" placeholder="2024"
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        </div>
+                         <div>
+                            <label for="vehicleMake" class="block text-sm font-medium text-gray-700">5. Vehicle Make</label>
+                            <input type="text" id="vehicleMake" placeholder="Toyota"
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        </div>
+                         <div>
+                            <label for="vehicleModel" class="block text-sm font-medium text-gray-700">6. Vehicle Model</label>
+                            <input type="text" id="vehicleModel" placeholder="Camry"
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        </div>
+                         <div>
+                            <label for="vehicleVin" class="block text-sm font-medium text-gray-700">7. VIN</label>
+                            <input type="text" id="vehicleVin" placeholder="123..."
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        </div>
+                        <div>
+                            <label for="vehicleMiles" class="block text-sm font-medium text-gray-700">8. Miles</label>
+                            <input type="number" id="vehicleMiles" placeholder="15000"
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Financial Details -->
+                <div class="p-4 border border-gray-200 rounded-lg">
+                    <h3 class="text-lg font-medium text-gray-800 mb-2">Financial Details</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="salePrice" class="block text-sm font-medium text-gray-700">9. Sale Price ($)</label>
+                            <input type="number" id="salePrice" placeholder="35000" step="0.01" required
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        </div>
+                        <div>
+                            <label id="bookValueLabel" for="bookValue" class="block text-sm font-medium text-gray-700">10. Invoice ($)</label>
+                            <input type="number" id="bookValue" placeholder="30000" step="0.01" required
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        </div>
+                        <div>
+                            <label id="bookValueRetailLabel" for="bookValueRetail" class="block text-sm font-medium text-gray-700">11. Retail Book Value ($)</label>
+                            <input type="number" id="bookValueRetail" placeholder="32000" step="0.01" value="0"
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        </div>
+                        <div>
+                            <label for="moneyDown" class="block text-sm font-medium text-gray-700">12. Money Down ($)</label>
+                            <input type="number" id="moneyDown" placeholder="5000" step="0.01" required
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        </div>
+                        <div id="rebate-section" class="col-span-full">
+                            <label for="rebate" class="block text-sm font-medium text-gray-700">13. Rebates ($)</label>
+                             <div class="mt-1 flex rounded-md shadow-sm">
+                                <input type="number" id="rebate" placeholder="1000" step="0.01" value="0"
+                                       class="flex-1 block w-full px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                <span class="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">
+                                    <input id="isRebateTaxable" type="checkbox" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                                    <label for="isRebateTaxable" class="ml-2">Taxable</label>
+                                </span>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="term" class="block text-sm font-medium text-gray-700">14. Term (Months)</label>
+                            <input type="number" id="term" placeholder="72" required
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        </div>
+                        <div>
+                            <label for="annualInterestRate" class="block text-sm font-medium text-gray-700">15. Annual Interest Rate (%)</label>
+                            <input type="number" id="annualInterestRate" placeholder="5.99" step="0.01" value="0"
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        </div>
+                        <div>
+                            <label for="firstPaymentDate" class="block text-sm font-medium text-gray-700">16. First Payment Date</label>
+                            <input type="date" id="firstPaymentDate" required
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        </div>
+                        <div>
+                            <label for="salesTaxRate" class="block text-sm font-medium text-gray-700">17. Sales Tax Rate (%)</label>
+                            <input type="number" id="salesTaxRate" placeholder="7.5" step="0.01" value="0"
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        </div>
+                        <div>
+                            <label for="taxes" class="block text-sm font-medium text-gray-700">18. Taxes ($)</label>
+                            <input type="number" id="taxes" placeholder="Calculated" step="0.01" required readonly
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 focus:outline-none sm:text-sm">
+                        </div>
+                        <div>
+                            <label for="docFee" class="block text-sm font-medium text-gray-700">19. Doc Fee ($)</label>
+                            <input type="number" id="docFee" placeholder="100" step="0.01" value="0"
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        </div>
+                        <div>
+                            <label for="otherFees" class="block text-sm font-medium text-gray-700">20. Other Fees ($)</label>
+                            <input type="number" id="otherFees" placeholder="200" step="0.01" value="0"
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        </div>
+                        <div>
+                            <label for="tradeAllowance" class="block text-sm font-medium text-gray-700">21. Trade Allowance ($)</label>
+                            <input type="number" id="tradeAllowance" placeholder="8000" step="0.01" value="0"
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        </div>
+                        <div>
+                            <label for="tradeOwed" class="block text-sm font-medium text-gray-700">22. Trade Owed ($)</label>
+                            <input type="number" id="tradeOwed" placeholder="6000" step="0.01" value="0"
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        </div>
+                        <div>
+                            <label for="gap" class="block text-sm font-medium text-gray-700">23. GAP ($)</label>
+                            <input type="number" id="gap" placeholder="700" step="0.01" value="0"
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        </div>
+                        <div>
+                            <label for="servicePlan" class="block text-sm font-medium text-gray-700">24. Service Plan ($)</label>
+                            <input type="number" id="servicePlan" placeholder="1200" step="0.01" value="0"
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        </div>
+                         <div>
+                            <label for="tireAndWheel" class="block text-sm font-medium text-gray-700">25. Tire and Wheel ($)</label>
+                            <input type="number" id="tireAndWheel" placeholder="300" step="0.01" value="0"
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        </div>
+                         <div>
+                            <label for="frontEndAdd" class="block text-sm font-medium text-gray-700">26. Front End Add ($)</label>
+                            <input type="number" id="frontEndAdd" placeholder="500" step="0.01" value="0"
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        </div>
+                    </div>
+                </div>
+                
+                 <div class="col-span-full flex gap-4">
+                    <button type="submit"
+                            class="flex-1 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Save Customer Profile
+                    </button>
+                    <button type="button" id="clearCustomerForm"
+                            class="flex-1 py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                        Clear
+                    </button>
+                </div>
+            </form>
+            
+            <!-- Calculation Displays -->
+            <div class="space-y-4 mt-6 mb-6">
+                <div class="p-4 bg-gray-50 border border-gray-200 rounded-lg text-center shadow-inner">
+                    <h3 class="text-lg font-medium text-gray-600">Calculated Amount to Finance</h3>
+                    <p id="amountFinancedValue" class="text-3xl font-bold text-blue-700 mt-1">$0.00</p>
+                </div>
+                <div class="p-4 bg-gray-50 border border-gray-200 rounded-lg text-center shadow-inner">
+                    <h3 class="text-lg font-medium text-gray-600">Line 5 Amount</h3>
+                    <p id="line5AmountValue" class="text-3xl font-bold text-green-700 mt-1">$0.00</p>
+                </div>
+                <div class="p-4 bg-gray-50 border border-gray-200 rounded-lg text-center shadow-inner">
+                    <h3 class="text-lg font-medium text-gray-600">Loan-to-Value (LTV)</h3>
+                    <p id="ltvValue" class="text-3xl font-bold text-indigo-700 mt-1">0.00%</p>
+                </div>
+                <div class="p-4 bg-gray-50 border border-gray-200 rounded-lg text-center shadow-inner">
+                    <h3 class="text-lg font-medium text-gray-600">Retail Loan-to-Value (LTV)</h3>
+                    <p id="retailLtvValue" class="text-3xl font-bold text-purple-700 mt-1">0.00%</p>
+                </div>
+                 <div class="p-4 bg-gray-50 border border-gray-200 rounded-lg text-center shadow-inner">
+                    <h3 class="text-lg font-medium text-gray-600">Estimated Monthly Payment</h3>
+                    <p id="monthlyPaymentValue" class="text-3xl font-bold text-teal-700 mt-1">$0.00</p>
+                </div>
+            </div>
+
+
+            <!-- Customer Deals List -->
+            <div id="customerDealsList" class="space-y-4">
+                <p class="text-gray-500 text-center">No deals created yet.</p>
+            </div>
+        </section>
+
+        <div class="flex flex-col flex-1 gap-6">
+            <!-- Bank Profile Section -->
+            <section class="flex-1 bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4 border-b pb-2">Bank Profiles</h2>
+
+                <form id="bankProfileForm" class="space-y-6">
+                    <input type="hidden" id="bankProfileId">
+                    
+                    <!-- General Information -->
+                    <div class="p-4 border border-gray-200 rounded-lg">
+                        <h3 class="text-lg font-medium text-gray-800 mb-2">1. General Information</h3>
+                        <div class="grid grid-cols-1">
+                            <div>
+                                <label for="bankName" class="block text-sm font-medium text-gray-700">Bank Name</label>
+                                <input type="text" id="bankName" placeholder="Bank A" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Customer & Loan Limits -->
+                    <div class="p-4 border border-gray-200 rounded-lg">
+                         <h3 class="text-lg font-medium text-gray-800 mb-2">2. Loan & Term Limits</h3>
+                         <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Max Term (by Vehicle Year)</label>
+                                <div id="term-rule-container" class="space-y-2 mt-1">
+                                    <!-- Term rule rows will be injected here -->
+                                </div>
+                                <button type="button" id="add-term-rule-btn" class="mt-2 text-sm text-blue-600 hover:text-blue-800">+ Add Year Range</button>
+                            </div>
+                             <div class="space-y-2">
+                                 <div class="flex items-center">
+                                    <input type="checkbox" id="enforceMinAmountFor84" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                                    <label for="enforceMinAmountFor84" class="ml-2 block text-sm text-gray-900">Enforce min amount for 84-month term</label>
+                                </div>
+                                <div id="minAmountFor84Container" class="hidden">
+                                    <label for="minAmountFor84" class="block text-sm font-medium text-gray-700">Min Amount Financed for 84mo ($)</label>
+                                    <input type="number" id="minAmountFor84" placeholder="25000" step="0.01" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                </div>
+                             </div>
+                         </div>
+                    </div>
+
+                    <!-- LTV Limits -->
+                    <div class="p-4 border border-gray-200 rounded-lg">
+                        <h3 class="text-lg font-medium text-gray-800 mb-2">3. LTV Limits</h3>
+                        <div class="grid grid-cols-1 gap-4">
+                            <div>
+                                <label for="maxLtvValue" class="block text-sm font-medium text-gray-700">Max LTV (%)</label>
+                                <div class="flex items-center gap-2 mt-1">
+                                    <input type="number" id="maxLtvValue" placeholder="125" step="0.01" class="block w-1/2 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                    <select id="maxLtvType" class="block w-1/2 pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                                        <option value="bookValue">of Book Value</option>
+                                        <option value="bookValueRetail">of Retail Book Value</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Backend Product Limits -->
+                    <div class="p-4 border border-gray-200 rounded-lg">
+                        <h3 class="text-lg font-medium text-gray-800 mb-2">4. Backend Product Limits</h3>
+                        <div class="space-y-4">
+                            <!-- Rule Editor for Service Plan -->
+                            <div class="p-2 border-l-4 border-blue-300 rule-editor" data-rule-name="maxServicePlan">
+                                <label class="block text-sm font-medium text-gray-700">Max Service Plan</label>
+                                <div class="flex items-center mt-1">
+                                    <input type="checkbox" class="refer-to-backend-checkbox h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                                    <label class="ml-2 block text-sm text-gray-900">Refer to Max Backend</label>
+                                </div>
+                                <div class="rule-sub-fields">
+                                    <select class="rule-type-selector mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                                        <option value="fixed">Fixed Amount</option>
+                                        <option value="percentage">Percentage of Value</option>
+                                        <option value="greaterOf">The Greater Of</option>
+                                        <option value="lesserOf">The Lesser Of</option>
+                                        <option value="range">Based on Range of Line 5 Amount</option>
+                                    </select>
+                                    <div class="rule-fields-fixed mt-2">
+                                        <input type="number" placeholder="Amount ($)" class="rule-value-fixed block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                                    </div>
+                                    <div class="rule-fields-percentage mt-2 hidden space-y-2">
+                                        <input type="number" placeholder="Percentage (%)" class="rule-value-percentage block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                                        <select class="rule-value-of block w-full pl-3 pr-10 py-2 text-base border-gray-300 rounded-md sm:text-sm">
+                                            <option value="bookValue">Book Value</option>
+                                            <option value="bookValueRetail">Retail Book Value</option>
+                                            <option value="salePrice">Sale Price</option>
+                                        </select>
+                                    </div>
+                                    <div class="rule-fields-comparison mt-2 hidden space-y-2">
+                                        <div class="flex items-center gap-2">
+                                            <input type="number" placeholder="Percentage (%)" class="rule-comp-valueA-perc block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                                            <select class="rule-comp-valueA-of block pl-3 pr-10 py-2 text-base border-gray-300 rounded-md sm:text-sm">
+                                                <option value="bookValue">of Book Value</option>
+                                                <option value="bookValueRetail">of Retail Book Value</option>
+                                                <option value="salePrice">of Sale Price</option>
+                                            </select>
+                                        </div>
+                                        <div class="text-center font-bold">OR</div>
+                                        <div class="flex items-center gap-2">
+                                            <input type="number" placeholder="Fixed Amount ($)" class="rule-comp-valueB-fixed block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                                        </div>
+                                    </div>
+                                    <div class="rule-fields-range mt-2 hidden space-y-2">
+                                        <div id="range-container-maxServicePlan">
+                                            <!-- Range rows will be injected here -->
+                                        </div>
+                                        <button type="button" class="add-range-btn text-sm text-blue-600 hover:text-blue-800">+ Add Range</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Rule Editor for Tire and Wheel -->
+                            <div class="p-2 border-l-4 border-yellow-300 rule-editor" data-rule-name="maxTireAndWheel">
+                                <label class="block text-sm font-medium text-gray-700">Max Tire and Wheel</label>
+                                 <div class="flex items-center mt-1">
+                                    <input type="checkbox" class="refer-to-backend-checkbox h-4 w-4 text-yellow-600 border-gray-300 rounded focus:ring-yellow-500">
+                                    <label class="ml-2 block text-sm text-gray-900">Refer to Max Backend</label>
+                                </div>
+                                <div class="rule-sub-fields">
+                                    <select class="rule-type-selector mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm rounded-md">
+                                        <option value="fixed">Fixed Amount</option>
+                                        <option value="percentage">Percentage of Value</option>
+                                        <option value="greaterOf">The Greater Of</option>
+                                        <option value="lesserOf">The Lesser Of</option>
+                                        <option value="range">Based on Range of Line 5 Amount</option>
+                                    </select>
+                                    <div class="rule-fields-fixed mt-2">
+                                        <input type="number" placeholder="Amount ($)" class="rule-value-fixed block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                                    </div>
+                                    <div class="rule-fields-percentage mt-2 hidden space-y-2">
+                                        <input type="number" placeholder="Percentage (%)" class="rule-value-percentage block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                                        <select class="rule-value-of block w-full pl-3 pr-10 py-2 text-base border-gray-300 rounded-md sm:text-sm">
+                                            <option value="bookValue">Book Value</option>
+                                            <option value="bookValueRetail">Retail Book Value</option>
+                                            <option value="salePrice">Sale Price</option>
+                                        </select>
+                                    </div>
+                                    <div class="rule-fields-comparison mt-2 hidden space-y-2">
+                                        <div class="flex items-center gap-2">
+                                            <input type="number" placeholder="Percentage (%)" class="rule-comp-valueA-perc block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                                             <select class="rule-comp-valueA-of block pl-3 pr-10 py-2 text-base border-gray-300 rounded-md sm:text-sm">
+                                                <option value="bookValue">of Book Value</option>
+                                                <option value="bookValueRetail">of Retail Book Value</option>
+                                                <option value="salePrice">of Sale Price</option>
+                                            </select>
+                                        </div>
+                                        <div class="text-center font-bold">OR</div>
+                                        <div class="flex items-center gap-2">
+                                            <input type="number" placeholder="Fixed Amount ($)" class="rule-comp-valueB-fixed block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                                        </div>
+                                    </div>
+                                    <div class="rule-fields-range mt-2 hidden space-y-2">
+                                        <div id="range-container-maxTireAndWheel">
+                                            <!-- Range rows will be injected here -->
+                                        </div>
+                                        <button type="button" class="add-range-btn text-sm text-blue-600 hover:text-blue-800">+ Add Range</button>
+                                    </div>
+                                </div>
+                            </div>
+                             <!-- Rule Editor for GAP -->
+                            <div class="p-2 border-l-4 border-green-300 rule-editor" data-rule-name="maxGap">
+                                 <label class="block text-sm font-medium text-gray-700">Max GAP</label>
+                                 <div class="flex items-center mt-1">
+                                    <input type="checkbox" class="refer-to-backend-checkbox h-4 w-4 text-green-600 border-gray-300 rounded focus:ring-green-500">
+                                    <label class="ml-2 block text-sm text-gray-900">Refer to Max Backend</label>
+                                </div>
+                                 <div class="rule-sub-fields">
+                                    <select class="rule-type-selector mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm rounded-md">
+                                        <option value="fixed">Fixed Amount</option>
+                                        <option value="percentage">Percentage of Value</option>
+                                        <option value="greaterOf">The Greater Of</option>
+                                        <option value="lesserOf">The Lesser Of</option>
+                                    </select>
+                                    <div class="rule-fields-fixed mt-2">
+                                        <input type="number" placeholder="Amount ($)" class="rule-value-fixed block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                                    </div>
+                                    <div class="rule-fields-percentage mt-2 hidden space-y-2">
+                                        <input type="number" placeholder="Percentage (%)" class="rule-value-percentage block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                                        <select class="rule-value-of block w-full pl-3 pr-10 py-2 text-base border-gray-300 rounded-md sm:text-sm">
+                                            <option value="bookValue">Book Value</option>
+                                            <option value="bookValueRetail">Retail Book Value</option>
+                                            <option value="salePrice">Sale Price</option>
+                                        </select>
+                                    </div>
+                                    <div class="rule-fields-comparison mt-2 hidden space-y-2">
+                                        <div class="flex items-center gap-2">
+                                            <input type="number" placeholder="Percentage (%)" class="rule-comp-valueA-perc block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                                             <select class="rule-comp-valueA-of block pl-3 pr-10 py-2 text-base border-gray-300 rounded-md sm:text-sm">
+                                                <option value="bookValue">of Book Value</option>
+                                                <option value="bookValueRetail">of Retail Book Value</option>
+                                                <option value="salePrice">of Sale Price</option>
+                                            </select>
+                                        </div>
+                                        <div class="text-center font-bold">OR</div>
+                                        <div class="flex items-center gap-2">
+                                            <input type="number" placeholder="Fixed Amount ($)" class="rule-comp-valueB-fixed block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Rule Editor for Total Backend -->
+                            <div class="p-2 border-l-4 border-purple-300 rule-editor" data-rule-name="maxBackend">
+                                 <label class="block text-sm font-medium text-gray-700">Max Total Backend</label>
+                                 <select class="rule-type-selector mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm rounded-md">
+                                    <option value="fixed">Fixed Amount</option>
+                                    <option value="percentage">Percentage of Value</option>
+                                    <option value="greaterOf">The Greater Of</option>
+                                    <option value="lesserOf">The Lesser Of</option>
+                                    <option value="range">Based on Range of Line 5 Amount</option>
+                                </select>
+                                 <div class="rule-fields-fixed mt-2">
+                                    <input type="number" placeholder="Amount ($)" class="rule-value-fixed block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                                </div>
+                                 <div class="rule-fields-percentage mt-2 hidden space-y-2">
+                                    <input type="number" placeholder="Percentage (%)" class="rule-value-percentage block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                                    <select class="rule-value-of block w-full pl-3 pr-10 py-2 text-base border-gray-300 rounded-md sm:text-sm">
+                                        <option value="bookValue">Book Value</option>
+                                        <option value="bookValueRetail">Retail Book Value</option>
+                                        <option value="salePrice">Sale Price</option>
+                                    </select>
+                                </div>
+                                <div class="rule-fields-comparison mt-2 hidden space-y-2">
+                                    <div class="flex items-center gap-2">
+                                        <input type="number" placeholder="Percentage (%)" class="rule-comp-valueA-perc block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                                         <select class="rule-comp-valueA-of block pl-3 pr-10 py-2 text-base border-gray-300 rounded-md sm:text-sm">
+                                            <option value="bookValue">of Book Value</option>
+                                            <option value="bookValueRetail">of Retail Book Value</option>
+                                            <option value="salePrice">of Sale Price</option>
+                                        </select>
+                                    </div>
+                                    <div class="text-center font-bold">OR</div>
+                                    <div class="flex items-center gap-2">
+                                        <input type="number" placeholder="Fixed Amount ($)" class="rule-comp-valueB-fixed block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                                    </div>
+                                </div>
+                                <div class="rule-fields-range mt-2 hidden space-y-2">
+                                    <div id="range-container-maxBackend">
+                                        <!-- Range rows will be injected here -->
+                                    </div>
+                                    <button type="button" class="add-range-btn text-sm text-blue-600 hover:text-blue-800">+ Add Range</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Exceptions & Notes -->
+                    <div class="p-4 border border-gray-200 rounded-lg">
+                        <h3 class="text-lg font-medium text-gray-800 mb-2">5. Exceptions & Notes</h3>
+                        <div class="space-y-4">
+                            <div class="flex items-center">
+                                <input type="checkbox" id="ifExceptions" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                                <label for="ifExceptions" class="ml-2 block text-sm text-gray-900">If Exceptions</label>
+                            </div>
+                            <div>
+                                <label for="bankNotes" class="block text-sm font-medium text-gray-700">Notes</label>
+                                <textarea id="bankNotes" rows="3" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-span-full flex gap-4">
+                        <button type="submit"
+                                class="flex-1 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            Save Bank Profile
+                        </button>
+                        <button type="button" id="clearBankForm"
+                                class="flex-1 py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                            Clear
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Bank Profiles List -->
+                <div id="bankProfilesList" class="space-y-4">
+                    <p class="text-gray-500 text-center">No profiles created yet.</p>
+                </div>
+            </section>
+
+            <!-- Validation Section -->
+            <section class="flex-1 bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4 border-b pb-2">Validation</h2>
+                <div class="mb-6 space-y-4">
+                    <div class="flex gap-4">
+                       <button id="validateDealBtn" class="flex-1 w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-lg font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                           Validate
+                        </button>
+                         <button id="resetValidationBtn" class="flex-1 w-full py-2 px-4 border border-gray-300 rounded-md shadow-sm text-lg font-medium text-gray-700 bg-gray-200 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                           Reset
+                        </button>
+                    </div>
+                </div>
+                <div id="validationResults" class="bg-gray-50 p-4 rounded-md border border-gray-200">
+                    <h3 class="text-xl font-medium text-gray-800 mb-2">Validation Outcome:</h3>
+                    <div id="validationOutput" class="text-gray-700 space-y-4">
+                        <p class="text-gray-500">Click the button above to validate the current deal against all saved bank profiles.</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Gemini Modal -->
+    <div id="geminiModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-loader" style="display: none;">
+                 <svg class="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            </div>
+            <div id="geminiModalContent"></div>
+             <button id="closeGeminiModal" class="mt-4 w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                Close
+            </button>
+        </div>
+    </div>
+    
+    <!-- Paste & Parse Modal -->
+    <div id="pasteParseModal" class="modal">
+        <div class="modal-content">
+             <div class="modal-loader" style="display: none;">
+                 <svg class="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            </div>
+            <div id="pasteParseContent">
+                <h3 class="text-xl font-bold mb-4">Paste Deal Text</h3>
+                <p class="text-sm text-gray-600 mb-4">Paste the text from your deal summary below. The AI will attempt to extract the financial details and populate the form for you.</p>
+                <textarea id="dealTextInput" rows="10" class="w-full p-2 border border-gray-300 rounded-md"></textarea>
+                 <div id="parseError" class="text-red-500 text-sm mt-2"></div>
+                <div class="flex gap-4 mt-4">
+                    <button id="parseDealTextBtn" class="flex-1 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        Parse Text
+                    </button>
+                    <button id="closeParseModal" class="flex-1 py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        // --- DOM Element References ---
+        const dealInfoSection = document.getElementById('dealInformation');
+        const customerDealForm = document.getElementById('customerDealForm');
+        const bankProfileForm = document.getElementById('bankProfileForm');
+        const customerDealsList = document.getElementById('customerDealsList');
+        const bankProfilesList = document.getElementById('bankProfilesList');
+        const validateDealBtn = document.getElementById('validateDealBtn');
+        const resetValidationBtn = document.getElementById('resetValidationBtn');
+        const validationOutput = document.getElementById('validationOutput');
+        const amountFinancedValueEl = document.getElementById('amountFinancedValue');
+        const line5AmountValueEl = document.getElementById('line5AmountValue');
+        const ltvValueEl = document.getElementById('ltvValue');
+        const retailLtvValueEl = document.getElementById('retailLtvValue');
+        const monthlyPaymentValueEl = document.getElementById('monthlyPaymentValue');
+        const geminiActionsContainer = document.getElementById('gemini-actions');
+        const geminiModal = document.getElementById('geminiModal');
+        const geminiModalContent = document.getElementById('geminiModalContent');
+        const modalLoader = document.querySelector('.modal-loader');
+        const closeGeminiModalBtn = document.getElementById('closeGeminiModal');
+        const vehicleTypeToggle = document.getElementById('vehicleTypeToggle');
+        const rebateSection = document.getElementById('rebate-section');
+        const rebateInput = document.getElementById('rebate');
+        const bookValueLabel = document.getElementById('bookValueLabel');
+        const bookValueRetailLabel = document.getElementById('bookValueRetailLabel');
+        const pasteParseBtn = document.getElementById('pasteParseBtn');
+        const pasteParseModal = document.getElementById('pasteParseModal');
+        const closeParseModalBtn = document.getElementById('closeParseModal');
+        const parseDealTextBtn = document.getElementById('parseDealTextBtn');
+        const dealTextInput = document.getElementById('dealTextInput');
+        const parseErrorDiv = document.getElementById('parseError');
+        
+        closeGeminiModalBtn.onclick = () => geminiModal.classList.remove('show');
+        pasteParseBtn.onclick = () => pasteParseModal.classList.add('show');
+        closeParseModalBtn.onclick = () => pasteParseModal.classList.remove('show');
+        
+        // --- Global State ---
+        let customerDeals = [];
+        let bankProfiles = [];
+        
+        // --- Utility Functions ---
+        function generateUniqueId() { return '_' + Math.random().toString(36).substr(2, 9); }
+        function formatCurrency(amount) { return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount); }
+        
+        function setDefaultDates() {
+            const dealDateEl = document.getElementById('dealDate');
+            const firstPaymentDateEl = document.getElementById('firstPaymentDate');
+            const now = new Date();
+            dealDateEl.value = now.toLocaleDateString('en-US');
+            const futureDate = new Date();
+            futureDate.setDate(now.getDate() + 45);
+            const year = futureDate.getFullYear();
+            const month = String(futureDate.getMonth() + 1).padStart(2, '0');
+            const day = String(futureDate.getDate()).padStart(2, '0');
+            firstPaymentDateEl.value = `${year}-${month}-${day}`;
+        }
+
+        // --- Calculation and Display Logic ---
+        function calculateAndDisplayTaxes() {
+            const salePrice = parseFloat(document.getElementById('salePrice').value) || 0;
+            const rebate = parseFloat(document.getElementById('rebate').value) || 0;
+            const isRebateTaxable = document.getElementById('isRebateTaxable').checked;
+            const tradeAllowance = parseFloat(document.getElementById('tradeAllowance').value) || 0;
+            const servicePlan = parseFloat(document.getElementById('servicePlan').value) || 0;
+            const tireAndWheel = parseFloat(document.getElementById('tireAndWheel').value) || 0;
+            const frontEndAdd = parseFloat(document.getElementById('frontEndAdd').value) || 0;
+            const taxRate = parseFloat(document.getElementById('salesTaxRate').value) || 0;
+            
+            let taxableBase = salePrice;
+            if (!isRebateTaxable) {
+                taxableBase -= rebate;
+            }
+
+            const taxableAmount = Math.max(0, (taxableBase - tradeAllowance) + servicePlan + tireAndWheel + frontEndAdd);
+            const calculatedTaxes = taxableAmount * (taxRate / 100);
+            document.getElementById('taxes').value = calculatedTaxes.toFixed(2);
+        }
+        
+        function calculateCurrentFinancedAmount() {
+            const salePrice = parseFloat(document.getElementById('salePrice').value) || 0;
+            const rebate = parseFloat(document.getElementById('rebate').value) || 0;
+            const taxes = parseFloat(document.getElementById('taxes').value) || 0;
+            const docFee = parseFloat(document.getElementById('docFee').value) || 0;
+            const otherFees = parseFloat(document.getElementById('otherFees').value) || 0;
+            const gap = parseFloat(document.getElementById('gap').value) || 0;
+            const servicePlan = parseFloat(document.getElementById('servicePlan').value) || 0;
+            const tireAndWheel = parseFloat(document.getElementById('tireAndWheel').value) || 0;
+            const frontEndAdd = parseFloat(document.getElementById('frontEndAdd').value) || 0;
+            const moneyDown = parseFloat(document.getElementById('moneyDown').value) || 0;
+            const tradeAllowance = parseFloat(document.getElementById('tradeAllowance').value) || 0;
+            const tradeOwed = parseFloat(document.getElementById('tradeOwed').value) || 0;
+            const netTrade = tradeAllowance - tradeOwed;
+            const totalAddons = docFee + otherFees + gap + servicePlan + tireAndWheel + frontEndAdd;
+            const loanAmount = salePrice + taxes + totalAddons - moneyDown - netTrade - rebate;
+            return loanAmount;
+        }
+
+        function calculateAccurateMonthlyPayment(principal, annualRate, termInMonths, firstPaymentDateStr) {
+            if (principal <= 0 || termInMonths <= 0 || annualRate < 0) {
+                return 0;
+            }
+
+            const firstPaymentDate = new Date(firstPaymentDateStr + 'T00:00:00');
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const diffTime = firstPaymentDate - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            const oddDays = diffDays > 30 ? diffDays - 30 : 0;
+            const dailyRate = (annualRate / 100) / 365;
+
+            const oddDaysInterest = principal * dailyRate * oddDays;
+            const adjustedPrincipal = principal + oddDaysInterest;
+            
+            if (annualRate === 0) {
+                return adjustedPrincipal / termInMonths;
+            }
+
+            const monthlyRate = (annualRate / 12) / 100;
+            const payment = adjustedPrincipal * (monthlyRate * Math.pow(1 + monthlyRate, termInMonths)) / (Math.pow(1 + monthlyRate, termInMonths) - 1);
+            
+            return isNaN(payment) || !isFinite(payment) ? 0 : payment;
+        }
+
+        function updateAllLiveCalculations() {
+            calculateAndDisplayTaxes();
+            const amountFinanced = calculateCurrentFinancedAmount();
+            amountFinancedValueEl.textContent = formatCurrency(amountFinanced);
+            
+            const gap = parseFloat(document.getElementById('gap').value) || 0;
+            const servicePlan = parseFloat(document.getElementById('servicePlan').value) || 0;
+            const tireAndWheel = parseFloat(document.getElementById('tireAndWheel').value) || 0;
+            const ltvLoanAmount = amountFinanced - gap - servicePlan - tireAndWheel;
+            line5AmountValueEl.textContent = formatCurrency(ltvLoanAmount);
+            
+            const bookValue = parseFloat(document.getElementById('bookValue').value) || 0;
+            const bookValueRetail = parseFloat(document.getElementById('bookValueRetail').value) || 0;
+            
+            let ltv = 0;
+            if (bookValue > 0) { ltv = (ltvLoanAmount / bookValue) * 100; }
+            ltvValueEl.textContent = `${ltv.toFixed(2)}%`;
+
+            let retailLtv = 0;
+            if (bookValueRetail > 0) { retailLtv = (ltvLoanAmount / bookValueRetail) * 100; }
+            retailLtvValueEl.textContent = `${retailLtv.toFixed(2)}%`;
+
+            const annualInterestRate = parseFloat(document.getElementById('annualInterestRate').value) || 0;
+            const term = parseInt(document.getElementById('term').value) || 0;
+            const firstPaymentDateStr = document.getElementById('firstPaymentDate').value;
+            const monthlyPayment = calculateAccurateMonthlyPayment(amountFinanced, annualInterestRate, term, firstPaymentDateStr);
+            monthlyPaymentValueEl.textContent = formatCurrency(monthlyPayment);
+        }
+
+        // --- Customer Deal Logic ---
+        function renderCustomerDeals() {
+            customerDealsList.innerHTML = '';
+            if (customerDeals.length === 0) {
+                customerDealsList.innerHTML = '<p class="text-gray-500 text-center">No customer deals saved yet.</p>';
+            } else {
+                customerDeals.forEach(deal => {
+                    const dealCard = document.createElement('div');
+                    dealCard.id = `customer-${deal.id}`;
+                    dealCard.className = 'bg-blue-50 border border-blue-200 p-4 rounded-md shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2';
+                    dealCard.innerHTML = `
+                        <div>
+                            <h3 class="text-lg font-semibold text-blue-800">${deal.customerName}</h3>
+                            <p class="text-sm text-gray-700">${deal.vehicleYear} ${deal.vehicleMake} ${deal.vehicleModel}</p>
+                            <p class="text-sm text-gray-700">Credit Score: ${deal.creditScore}</p>
+                             <p class="text-sm text-gray-700">Loan Amount: ${formatCurrency(deal.loanAmount)}</p>
+                        </div>
+                        <div class="flex flex-col sm:flex-row gap-2 mt-2 sm:mt-0">
+                            <button onclick="window.editCustomerDeal('${deal.id}')" class="py-1 px-3 bg-yellow-500 text-white rounded-md text-xs hover:bg-yellow-600">Edit</button>
+                            <button onclick="window.deleteCustomerDeal('${deal.id}')" class="py-1 px-3 bg-red-500 text-white rounded-md text-xs hover:bg-red-600">Delete</button>
+                        </div>`;
+                    customerDealsList.appendChild(dealCard);
+                });
+            }
+        }
+
+        customerDealForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            
+            const id = document.getElementById('customerDealId').value;
+            const dealData = {
+                id: id || generateUniqueId(),
+                customerName: document.getElementById('customerName').value, vehicleYear: document.getElementById('vehicleYear').value, vehicleMake: document.getElementById('vehicleMake').value, vehicleModel: document.getElementById('vehicleModel').value, vehicleVin: document.getElementById('vehicleVin').value, vehicleMiles: document.getElementById('vehicleMiles').value,
+                creditScore: parseInt(document.getElementById('creditScore').value) || 0,
+                salePrice: parseFloat(document.getElementById('salePrice').value) || 0, bookValue: parseFloat(document.getElementById('bookValue').value) || 0, bookValueRetail: parseFloat(document.getElementById('bookValueRetail').value) || 0, moneyDown: parseFloat(document.getElementById('moneyDown').value) || 0, rebate: parseFloat(document.getElementById('rebate').value) || 0, isRebateTaxable: document.getElementById('isRebateTaxable').checked, term: parseInt(document.getElementById('term').value) || 0, annualInterestRate: parseFloat(document.getElementById('annualInterestRate').value) || 0, firstPaymentDate: document.getElementById('firstPaymentDate').value, salesTaxRate: parseFloat(document.getElementById('salesTaxRate').value) || 0, taxes: parseFloat(document.getElementById('taxes').value) || 0, docFee: parseFloat(document.getElementById('docFee').value) || 0, otherFees: parseFloat(document.getElementById('otherFees').value) || 0, tradeAllowance: parseFloat(document.getElementById('tradeAllowance').value) || 0, tradeOwed: parseFloat(document.getElementById('tradeOwed').value) || 0, gap: parseFloat(document.getElementById('gap').value) || 0, servicePlan: parseFloat(document.getElementById('servicePlan').value) || 0, tireAndWheel: parseFloat(document.getElementById('tireAndWheel').value) || 0, frontEndAdd: parseFloat(document.getElementById('frontEndAdd').value) || 0,
+            };
+            dealData.loanAmount = calculateCurrentFinancedAmount();
+            
+            if (id) {
+                const index = customerDeals.findIndex(d => d.id === id);
+                customerDeals[index] = dealData;
+            } else {
+                customerDeals.push(dealData);
+            }
+
+            clearAllForms();
+            renderCustomerDeals();
+        });
+        
+        function clearAllForms() {
+            customerDealForm.reset();
+            document.getElementById('customerDealId').value = '';
+            document.getElementById('customerName').value = '';
+            document.getElementById('vehicleYear').value = '';
+            document.getElementById('vehicleMake').value = '';
+            document.getElementById('vehicleModel').value = '';
+            document.getElementById('vehicleVin').value = '';
+            document.getElementById('vehicleMiles').value = '';
+            document.getElementById('creditScore').value = '';
+            setDefaultDates();
+            updateAllLiveCalculations();
+        }
+
+        window.editCustomerDeal = (id) => {
+            const dealToEdit = customerDeals.find(deal => deal.id === id);
+            if (dealToEdit) {
+                document.getElementById('customerDealId').value = dealToEdit.id;
+                document.getElementById('customerName').value = dealToEdit.customerName; document.getElementById('vehicleYear').value = dealToEdit.vehicleYear; document.getElementById('vehicleMake').value = dealToEdit.vehicleMake; document.getElementById('vehicleModel').value = dealToEdit.vehicleModel; document.getElementById('vehicleVin').value = dealToEdit.vehicleVin; document.getElementById('vehicleMiles').value = dealToEdit.vehicleMiles;
+                document.getElementById('creditScore').value = dealToEdit.creditScore; 
+                document.getElementById('salePrice').value = dealToEdit.salePrice; document.getElementById('bookValue').value = dealToEdit.bookValue; document.getElementById('bookValueRetail').value = dealToEdit.bookValueRetail; document.getElementById('moneyDown').value = dealToEdit.moneyDown; document.getElementById('rebate').value = dealToEdit.rebate; document.getElementById('isRebateTaxable').checked = dealToEdit.isRebateTaxable; document.getElementById('term').value = dealToEdit.term; document.getElementById('annualInterestRate').value = dealToEdit.annualInterestRate; document.getElementById('firstPaymentDate').value = dealToEdit.firstPaymentDate; document.getElementById('salesTaxRate').value = dealToEdit.salesTaxRate; document.getElementById('docFee').value = dealToEdit.docFee; document.getElementById('otherFees').value = dealToEdit.otherFees; document.getElementById('tradeAllowance').value = dealToEdit.tradeAllowance; document.getElementById('tradeOwed').value = dealToEdit.tradeOwed; document.getElementById('gap').value = dealToEdit.gap; document.getElementById('servicePlan').value = dealToEdit.servicePlan; document.getElementById('tireAndWheel').value = dealToEdit.tireAndWheel; document.getElementById('frontEndAdd').value = dealToEdit.frontEndAdd;
+                window.scrollTo(0, 0);
+                updateAllLiveCalculations();
+            }
+        }
+
+        window.deleteCustomerDeal = (id) => {
+            customerDeals = customerDeals.filter(d => d.id !== id);
+            renderCustomerDeals();
+        }
+        
+        document.getElementById('clearCustomerForm').addEventListener('click', clearAllForms);
+        dealInfoSection.addEventListener('input', updateAllLiveCalculations);
+        customerDealForm.addEventListener('input', updateAllLiveCalculations);
+
+        // --- Bank Profile Logic ---
+        function renderBankProfiles() {
+            bankProfilesList.innerHTML = '';
+            if (bankProfiles.length === 0) {
+                bankProfilesList.innerHTML = '<p class="text-gray-500 text-center">No bank profiles saved yet.</p>';
+            } else {
+                 bankProfiles.forEach(bank => {
+                    const bankCard = document.createElement('div');
+                    bankCard.id = `bank-${bank.id}`;
+                    bankCard.className = 'bg-green-50 border border-green-200 p-4 rounded-md shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2';
+                    bankCard.innerHTML = `
+                        <div>
+                            <h3 class="text-lg font-semibold text-green-800">${bank.bankName}</h3>
+                             <p class="text-sm text-gray-700">Max LTV: ${bank.maxLtv.value}% of ${bank.maxLtv.type === 'bookValue' ? 'Book' : 'Retail'}</p>
+                        </div>
+                        <div class="flex flex-col sm:flex-row gap-2 mt-2 sm:mt-0">
+                            <button onclick="window.editBankProfile('${bank.id}')" class="py-1 px-3 bg-yellow-500 text-white rounded-md text-xs hover:bg-yellow-600">Edit</button>
+                            <button onclick="window.deleteBankProfile('${bank.id}')" class="py-1 px-3 bg-red-500 text-white rounded-md text-xs hover:bg-red-600">Delete</button>
+                        </div>`;
+                    bankProfilesList.appendChild(bankCard);
+                });
+            }
+        }
+
+        bankProfileForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            const id = document.getElementById('bankProfileId').value;
+            const newBank = {
+                id: id || generateUniqueId(),
+                bankName: document.getElementById('bankName').value,
+                maxTermRule: parseTermRule(),
+                minAmountFor84: document.getElementById('enforceMinAmountFor84').checked ? (parseFloat(document.getElementById('minAmountFor84').value) || 0) : null,
+                maxLtv: {
+                    value: parseFloat(document.getElementById('maxLtvValue').value) || 0,
+                    type: document.getElementById('maxLtvType').value
+                },
+                maxServicePlan: parseRule('maxServicePlan'),
+                maxTireAndWheel: parseRule('maxTireAndWheel'),
+                maxGap: parseRule('maxGap'),
+                maxBackend: parseRule('maxBackend'),
+                ifExceptions: document.getElementById('ifExceptions').checked,
+                notes: document.getElementById('bankNotes').value
+            };
+            if (id) {
+                const index = bankProfiles.findIndex(b => b.id === id);
+                bankProfiles[index] = newBank;
+            } else {
+                bankProfiles.push(newBank);
+            }
+            saveBankProfilesToLocalStorage();
+            bankProfileForm.reset();
+            document.querySelectorAll('.rule-editor').forEach(setupRuleEditor); 
+            document.getElementById('term-rule-container').innerHTML = '';
+            addTermRangeRow(document.getElementById('term-rule-container'), {}, false);
+            document.getElementById('bankProfileId').value = '';
+            renderBankProfiles();
+        });
+        
+        window.editBankProfile = (id) => {
+            const bankToEdit = bankProfiles.find(bank => bank.id === id);
+            if (bankToEdit) {
+                document.getElementById('bankProfileId').value = bankToEdit.id;
+                document.getElementById('bankName').value = bankToEdit.bankName;
+                document.getElementById('enforceMinAmountFor84').checked = bankToEdit.minAmountFor84 !== null;
+                document.getElementById('minAmountFor84').value = bankToEdit.minAmountFor84 || '';
+                document.getElementById('minAmountFor84Container').classList.toggle('hidden', !document.getElementById('enforceMinAmountFor84').checked);
+                
+                document.getElementById('maxLtvValue').value = bankToEdit.maxLtv.value;
+                document.getElementById('maxLtvType').value = bankToEdit.maxLtv.type;
+                populateTermRuleEditor(bankToEdit.maxTermRule);
+                populateRuleEditor('maxServicePlan', bankToEdit.maxServicePlan);
+                populateRuleEditor('maxTireAndWheel', bankToEdit.maxTireAndWheel);
+                populateRuleEditor('maxGap', bankToEdit.maxGap);
+                populateRuleEditor('maxBackend', bankToEdit.maxBackend);
+                document.getElementById('ifExceptions').checked = bankToEdit.ifExceptions;
+                document.getElementById('bankNotes').value = bankToEdit.notes;
+                 window.scrollTo(0, 0);
+            }
+        }
+        
+        window.deleteBankProfile = (id) => {
+            bankProfiles = bankProfiles.filter(b => b.id !== id);
+            saveBankProfilesToLocalStorage();
+            renderBankProfiles();
+        }
+        
+        document.getElementById('clearBankForm').addEventListener('click', () => { 
+            bankProfileForm.reset(); 
+            document.querySelectorAll('.rule-editor').forEach(setupRuleEditor);
+            document.getElementById('term-rule-container').innerHTML = '';
+            addTermRangeRow(document.getElementById('term-rule-container'), {}, false);
+            document.getElementById('bankProfileId').value = ''; 
+        });
+
+        // --- Validation Logic & Gemini ---
+        validateDealBtn.addEventListener('click', () => {
+            const currentDeal = {
+                id: 'current',
+                customerName: document.getElementById('customerName').value, vehicleYear: parseInt(document.getElementById('vehicleYear').value) || 0, vehicleMake: document.getElementById('vehicleMake').value, vehicleModel: document.getElementById('vehicleModel').value, vehicleVin: document.getElementById('vehicleVin').value, vehicleMiles: document.getElementById('vehicleMiles').value,
+                creditScore: parseInt(document.getElementById('creditScore').value) || 0,
+                salePrice: parseFloat(document.getElementById('salePrice').value) || 0, bookValue: parseFloat(document.getElementById('bookValue').value) || 0, bookValueRetail: parseFloat(document.getElementById('bookValueRetail').value) || 0, moneyDown: parseFloat(document.getElementById('moneyDown').value) || 0, rebate: parseFloat(document.getElementById('rebate').value) || 0, isRebateTaxable: document.getElementById('isRebateTaxable').checked, term: parseInt(document.getElementById('term').value) || 0, annualInterestRate: parseFloat(document.getElementById('annualInterestRate').value) || 0, firstPaymentDate: document.getElementById('firstPaymentDate').value, salesTaxRate: parseFloat(document.getElementById('salesTaxRate').value) || 0, taxes: parseFloat(document.getElementById('taxes').value) || 0, docFee: parseFloat(document.getElementById('docFee').value) || 0, otherFees: parseFloat(document.getElementById('otherFees').value) || 0, tradeAllowance: parseFloat(document.getElementById('tradeAllowance').value) || 0, tradeOwed: parseFloat(document.getElementById('tradeOwed').value) || 0, gap: parseFloat(document.getElementById('gap').value) || 0, servicePlan: parseFloat(document.getElementById('servicePlan').value) || 0, tireAndWheel: parseFloat(document.getElementById('tireAndWheel').value) || 0, frontEndAdd: parseFloat(document.getElementById('frontEndAdd').value) || 0,
+            };
+            currentDeal.loanAmount = calculateCurrentFinancedAmount();
+
+            validationOutput.innerHTML = '';
+            
+            if (bankProfiles.length === 0) {
+                validationOutput.innerHTML = '<p class="text-gray-500">No bank profiles have been saved to validate against.</p>';
+                return;
+            }
+
+            bankProfiles.forEach(bankProfile => {
+                const validationResults = validateDealAgainstBank(currentDeal, bankProfile);
+                const resultCard = document.createElement('div');
+                resultCard.className = `p-4 rounded-lg border-2 ${validationResults.isValid ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50'}`;
+                
+                const header = document.createElement('h4');
+                header.className = `font-bold text-lg mb-2 ${validationResults.isValid ? 'text-green-800' : 'text-red-800'}`;
+                header.textContent = `${bankProfile.bankName}: ${validationResults.isValid ? '✅ Approved' : '❌ Rejected'}`;
+                resultCard.appendChild(header);
+
+                const messagesContainer = document.createElement('div');
+                messagesContainer.className = 'text-sm space-y-1';
+                validationResults.messages.forEach(message => {
+                    const p = document.createElement('p');
+                    p.innerHTML = message;
+                    messagesContainer.appendChild(p);
+                });
+                resultCard.appendChild(messagesContainer);
+
+                if (!validationResults.isValid) {
+                    const suggestFixBtn = document.createElement('button');
+                    suggestFixBtn.innerHTML = `✨ Suggest a Fix`;
+                    suggestFixBtn.className = 'w-full mt-3 py-1 px-3 border border-transparent rounded-md shadow-sm text-xs font-medium text-white bg-orange-500 hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500';
+                    suggestFixBtn.onclick = () => suggestFix(currentDeal, bankProfile, validationResults.messages);
+                    resultCard.appendChild(suggestFixBtn);
+                }
+                validationOutput.appendChild(resultCard);
+            });
+
+            const summarizeBtn = document.createElement('button');
+            summarizeBtn.innerHTML = '📝 Generate Summary for Current Deal';
+            summarizeBtn.className = 'w-full mt-4 py-2 px-4 border border-transparent rounded-md shadow-sm text-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500';
+            summarizeBtn.onclick = () => generateSummary(currentDeal);
+            validationOutput.appendChild(summarizeBtn);
+        });
+
+        function validateDealAgainstBank(customerDeal, bankProfile) {
+            const results = { isValid: true, messages: [] };
+            const line5Amount = customerDeal.loanAmount - customerDeal.gap - customerDeal.servicePlan - customerDeal.tireAndWheel;
+            const backendAmount = customerDeal.gap + customerDeal.servicePlan + customerDeal.tireAndWheel + customerDeal.frontEndAdd;
+            
+            // Customer & Loan Limits
+            
+            const maxTermAllowed = evaluateTermRule(bankProfile.maxTermRule, customerDeal.vehicleYear);
+            if (customerDeal.term > maxTermAllowed) { results.isValid = false; results.messages.push(`<span class="text-red-600">❌ Term (${customerDeal.term}mo) exceeds max of ${maxTermAllowed}mo for a ${customerDeal.vehicleYear} vehicle.</span>`); } else { results.messages.push(`<span class="text-green-600">✅ Term (${customerDeal.term}mo) is within limit.</span>`); }
+            
+            if (bankProfile.minAmountFor84 && customerDeal.term === 84 && customerDeal.loanAmount < bankProfile.minAmountFor84) {
+                 results.isValid = false; results.messages.push(`<span class="text-red-600">❌ Amount Financed (${formatCurrency(customerDeal.loanAmount)}) is below the minimum of ${formatCurrency(bankProfile.minAmountFor84)} for an 84-month term.</span>`);
+            } else {
+                 results.messages.push(`<span class="text-green-600">✅ Amount Financed meets term requirement.</span>`);
+            }
+            
+            // LTV Limits
+            const ltvBaseValue = bankProfile.maxLtv.type === 'bookValueRetail' ? customerDeal.bookValueRetail : customerDeal.bookValue;
+            const ltvBaseType = bankProfile.maxLtv.type === 'bookValueRetail' ? 'Retail Book Value' : 'Book Value';
+            if (ltvBaseValue > 0) {
+                const ltv = (line5Amount / ltvBaseValue) * 100;
+                if (ltv > bankProfile.maxLtv.value) { results.isValid = false; results.messages.push(`<span class="text-red-600">❌ LTV (${ltv.toFixed(2)}%) exceeds bank's max of ${bankProfile.maxLtv.value}% of ${ltvBaseType}.</span>`); } else { results.messages.push(`<span class="text-green-600">✅ LTV (${ltv.toFixed(2)}%) is within max of ${bankProfile.maxLtv.value}%.</span>`); }
+            } else { results.isValid = false; results.messages.push(`<span class="text-red-600">❌ LTV cannot be calculated. ${ltvBaseType} must be > 0.</span>`); }
+
+            // Backend Limits
+            if (!bankProfile.maxServicePlan.referToBackend) {
+                const maxServicePlanAllowed = evaluateRule(bankProfile.maxServicePlan, customerDeal);
+                if (customerDeal.servicePlan > maxServicePlanAllowed) { results.isValid = false; results.messages.push(`<span class="text-red-600">❌ Service Plan (${formatCurrency(customerDeal.servicePlan)}) exceeds max of ${formatCurrency(maxServicePlanAllowed)}.</span>`); } else { results.messages.push(`<span class="text-green-600">✅ Service Plan is within limit.</span>`); }
+            }
+            
+            if (!bankProfile.maxTireAndWheel.referToBackend) {
+                const maxTireAndWheelAllowed = evaluateRule(bankProfile.maxTireAndWheel, customerDeal);
+                if (customerDeal.tireAndWheel > maxTireAndWheelAllowed) { results.isValid = false; results.messages.push(`<span class="text-red-600">❌ Tire & Wheel (${formatCurrency(customerDeal.tireAndWheel)}) exceeds max of ${formatCurrency(maxTireAndWheelAllowed)}.</span>`); } else { results.messages.push(`<span class="text-green-600">✅ Tire & Wheel is within limit.</span>`); }
+            }
+            
+            if (!bankProfile.maxGap.referToBackend) {
+                const maxGapAllowed = evaluateRule(bankProfile.maxGap, customerDeal);
+                if (customerDeal.gap > maxGapAllowed) { results.isValid = false; results.messages.push(`<span class="text-red-600">❌ GAP (${formatCurrency(customerDeal.gap)}) exceeds max of ${formatCurrency(maxGapAllowed)}.</span>`); } else { results.messages.push(`<span class="text-green-600">✅ GAP is within limit.</span>`); }
+            }
+            
+            const maxBackendAllowed = evaluateRule(bankProfile.maxBackend, customerDeal);
+            if (backendAmount > maxBackendAllowed) { results.isValid = false; results.messages.push(`<span class="text-red-600">❌ Total Backend (${formatCurrency(backendAmount)}) exceeds max of ${formatCurrency(maxBackendAllowed)}.</span>`); } else { results.messages.push(`<span class="text-green-600">✅ Total Backend is within limit.</span>`); }
+            
+            return results;
+        }
+
+        // --- Gemini API Functions ---
+        const apiKey = ""; // This will be handled by the environment
+        
+        async function generateSummary(deal) {
+            geminiModal.classList.add('show');
+            modalLoader.style.display = 'flex';
+            geminiModalContent.style.display = 'none';
+
+            const monthlyPayment = calculateAccurateMonthlyPayment(deal.loanAmount, deal.annualInterestRate, deal.term, deal.firstPaymentDate);
+
+            const prompt = `Generate a clear, simple, customer-friendly summary for the following vehicle purchase deal. Use bullet points for the key financial numbers.
+
+            **Customer:** ${deal.customerName}
+            **Vehicle:** ${deal.vehicleYear} ${deal.vehicleMake} ${deal.vehicleModel}
+            
+            **Financials:**
+            - Sale Price: ${formatCurrency(deal.salePrice)}
+            - Rebate: ${formatCurrency(deal.rebate)}
+            - Total Fees (Doc Fee + Other): ${formatCurrency(deal.docFee + deal.otherFees)}
+            - Taxes: ${formatCurrency(deal.taxes)}
+            - GAP Insurance: ${formatCurrency(deal.gap)}
+            - Service Plan: ${formatCurrency(deal.servicePlan)}
+            - Tire & Wheel: ${formatCurrency(deal.tireAndWheel)}
+            - Trade-in Allowance: ${formatCurrency(deal.tradeAllowance)}
+            - Amount Owed on Trade: ${formatCurrency(deal.tradeOwed)}
+            - Cash Down Payment: ${formatCurrency(deal.moneyDown)}
+            - Total Amount Financed: ${formatCurrency(deal.loanAmount)}
+            - Term: ${deal.term} months
+            - Interest Rate: ${deal.annualInterestRate}%
+            - Estimated Monthly Payment: ${formatCurrency(monthlyPayment)}
+            `;
+            
+            let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+            const payload = { contents: chatHistory };
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                let text = "Could not generate summary.";
+                if (result.candidates && result.candidates[0]?.content?.parts[0]?.text) {
+                    text = result.candidates[0].content.parts[0].text.replace(/\n/g, '<br>');
+                }
+                geminiModalContent.innerHTML = `<h3 class="text-xl font-bold mb-4">Deal Summary</h3><p>${text}</p>`;
+            } catch (error) {
+                console.error("Gemini API Error:", error);
+                geminiModalContent.innerHTML = `<p class="text-red-500">An error occurred while generating the summary.</p>`;
+            } finally {
+                modalLoader.style.display = 'none';
+                geminiModalContent.style.display = 'block';
+            }
+        }
+        
+        async function suggestFix(deal, bank, rejectionReasons) {
+            geminiModal.classList.add('show');
+            modalLoader.style.display = 'flex';
+            geminiModalContent.style.display = 'none';
+
+            const prompt = `A car deal was rejected. Here is the deal data, the bank's rules, and the reasons for rejection.
+            
+            **Deal Data:**
+            ${JSON.stringify(deal, null, 2)}
+            
+            **Bank Rules:**
+            ${JSON.stringify(bank, null, 2)}
+            
+            **Rejection Reasons:**
+            ${rejectionReasons.join('\n')}
+            
+            Please provide a few specific, actionable suggestions to make this deal meet the bank's criteria. Focus on the smallest possible changes to fields like 'moneyDown', 'salePrice', 'gap', or 'servicePlan'.
+            `;
+            
+            let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+            const payload = { contents: chatHistory };
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                let text = "Could not generate suggestions.";
+                 if (result.candidates && result.candidates[0]?.content?.parts[0]?.text) {
+                    text = result.candidates[0].content.parts[0].text.replace(/\n/g, '<br>');
+                }
+                geminiModalContent.innerHTML = `<h3 class="text-xl font-bold mb-4">Suggestions to Fix Deal</h3><div class="prose">${text}</div>`;
+            } catch (error) {
+                console.error("Gemini API Error:", error);
+                geminiModalContent.innerHTML = `<p class="text-red-500">An error occurred while generating suggestions.</p>`;
+            } finally {
+                modalLoader.style.display = 'none';
+                geminiModalContent.style.display = 'block';
+            }
+        }
+        
+        // --- Rule Editor Logic ---
+        function setupRuleEditor(editorElement) {
+            const typeSelector = editorElement.querySelector('.rule-type-selector');
+            const fixedFields = editorElement.querySelector('.rule-fields-fixed');
+            const percentageFields = editorElement.querySelector('.rule-fields-percentage');
+            const comparisonFields = editorElement.querySelector('.rule-fields-comparison');
+            const rangeFields = editorElement.querySelector('.rule-fields-range');
+            const subFieldsContainer = editorElement.querySelector('.rule-sub-fields');
+            const referCheckbox = editorElement.querySelector('.refer-to-backend-checkbox');
+
+            function updateVisibility() {
+                const selectedType = typeSelector.value;
+                if (fixedFields) fixedFields.classList.toggle('hidden', selectedType !== 'fixed');
+                if (percentageFields) percentageFields.classList.toggle('hidden', selectedType !== 'percentage');
+                if (comparisonFields) comparisonFields.classList.toggle('hidden', selectedType !== 'greaterOf' && selectedType !== 'lesserOf');
+                if (rangeFields) rangeFields.classList.toggle('hidden', selectedType !== 'range');
+            }
+            
+            if (typeSelector) {
+                typeSelector.addEventListener('change', updateVisibility);
+                updateVisibility(); 
+            }
+
+            if (referCheckbox) {
+                referCheckbox.addEventListener('change', () => {
+                    if(subFieldsContainer) subFieldsContainer.classList.toggle('disabled', referCheckbox.checked);
+                });
+                if(subFieldsContainer) subFieldsContainer.classList.toggle('disabled', referCheckbox.checked);
+            }
+        }
+
+        function parseRule(ruleName) {
+            const editor = document.querySelector(`.rule-editor[data-rule-name="${ruleName}"]`);
+            const type = editor.querySelector('.rule-type-selector').value;
+            const rule = { type };
+
+            if (ruleName === 'maxTireAndWheel' || ruleName === 'maxGap' || ruleName === 'maxServicePlan') {
+                rule.referToBackend = editor.querySelector('.refer-to-backend-checkbox').checked;
+            }
+
+            if (type === 'fixed') {
+                rule.value = parseFloat(editor.querySelector('.rule-value-fixed').value) || 0;
+            } else if (type === 'percentage') {
+                rule.value = parseFloat(editor.querySelector('.rule-value-percentage').value) || 0;
+                rule.of = editor.querySelector('.rule-value-of').value;
+            } else if (type === 'greaterOf' || type === 'lesserOf') {
+                rule.valueA = {
+                    type: 'percentage',
+                    value: parseFloat(editor.querySelector('.rule-comp-valueA-perc').value) || 0,
+                    of: editor.querySelector('.rule-comp-valueA-of').value
+                };
+                rule.valueB = {
+                    type: 'fixed',
+                    value: parseFloat(editor.querySelector('.rule-comp-valueB-fixed').value) || 0
+                };
+            } else if (type === 'range') {
+                rule.ranges = [];
+                const rangeRows = editor.querySelectorAll('.range-row');
+                rangeRows.forEach(row => {
+                    const min = parseFloat(row.querySelector('.range-min').value) || 0;
+                    const max = parseFloat(row.querySelector('.range-max').value) || 999999;
+                    const value = parseFloat(row.querySelector('.range-value').value) || 0;
+                    rule.ranges.push({ min, max, value });
+                });
+            }
+            return rule;
+        }
+        
+        function populateRuleEditor(ruleName, rule) {
+            const editor = document.querySelector(`.rule-editor[data-rule-name="${ruleName}"]`);
+            if (!rule) { 
+                editor.querySelector('.rule-type-selector').value = 'fixed';
+                if(editor.querySelector('.rule-value-fixed')) editor.querySelector('.rule-value-fixed').value = '';
+                if(editor.querySelector('.refer-to-backend-checkbox')) editor.querySelector('.refer-to-backend-checkbox').checked = false;
+                setupRuleEditor(editor);
+                return;
+            }
+            
+             if ((ruleName === 'maxTireAndWheel' || ruleName === 'maxGap' || ruleName === 'maxServicePlan') && editor.querySelector('.refer-to-backend-checkbox')) {
+                editor.querySelector('.refer-to-backend-checkbox').checked = rule.referToBackend || false;
+            }
+            
+            editor.querySelector('.rule-type-selector').value = rule.type;
+            if (rule.type === 'fixed') {
+                editor.querySelector('.rule-value-fixed').value = rule.value;
+            } else if (rule.type === 'percentage') {
+                editor.querySelector('.rule-value-percentage').value = rule.value;
+                editor.querySelector('.rule-value-of').value = rule.of;
+            } else if (rule.type === 'greaterOf' || rule.type === 'lesserOf') {
+                editor.querySelector('.rule-comp-valueA-perc').value = rule.valueA.value;
+                editor.querySelector('.rule-comp-valueA-of').value = rule.valueA.of;
+                editor.querySelector('.rule-comp-valueB-fixed').value = rule.valueB.value;
+            } else if (type === 'range') {
+                const container = editor.querySelector(`#range-container-${ruleName}`);
+                container.innerHTML = ''; // Clear existing
+                if (rule.ranges && rule.ranges.length > 0) {
+                    rule.ranges.forEach((range, index) => {
+                        addRangeRow(container, range, index > 0);
+                    });
+                } else {
+                     addRangeRow(container, {}, false);
+                }
+            }
+            setupRuleEditor(editor);
+        }
+
+        function evaluateRule(rule, deal) {
+            if (!rule) return Infinity; 
+
+            switch (rule.type) {
+                case 'fixed':
+                    return rule.value;
+                case 'percentage':
+                    const baseValue = deal[rule.of] || 0;
+                    return baseValue * (rule.value / 100);
+                case 'greaterOf':
+                    const valA_greater = evaluateRule(rule.valueA, deal);
+                    const valB_greater = evaluateRule(rule.valueB, deal);
+                    return Math.max(valA_greater, valB_greater);
+                case 'lesserOf':
+                    const valA_lesser = evaluateRule(rule.valueA, deal);
+                    const valB_lesser = evaluateRule(rule.valueB, deal);
+                    return Math.min(valA_lesser, valB_lesser);
+                case 'range':
+                    const line5Amount = deal.loanAmount - deal.gap - deal.servicePlan - deal.tireAndWheel;
+                    const matchingRange = rule.ranges.find(r => line5Amount >= r.min && line5Amount <= r.max);
+                    return matchingRange ? matchingRange.value : Infinity;
+                default:
+                    return Infinity;
+            }
+        }
+
+        function addRangeRow(container, data = {}, showRemove = true) {
+            const row = document.createElement('div');
+            row.className = 'range-row flex items-center gap-2';
+            row.innerHTML = `
+                <input type="number" placeholder="Min $" value="${data.min || ''}" class="range-min block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                <span>-</span>
+                <input type="number" placeholder="Max $" value="${data.max || ''}" class="range-max block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                <span>-></span>
+                <input type="number" placeholder="Max Limit $" value="${data.value || ''}" class="range-value block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                ${showRemove ? '<button type="button" class="remove-range-btn text-red-500 hover:text-red-700">&times;</button>' : ''}
+            `;
+            container.appendChild(row);
+            if (showRemove) {
+                row.querySelector('.remove-range-btn').addEventListener('click', () => row.remove());
+            }
+        }
+        
+        function addTermRangeRow(container, data = {}, showRemove = true) {
+            const row = document.createElement('div');
+            row.className = 'term-range-row flex items-center gap-2';
+            row.innerHTML = `
+                <input type="number" placeholder="Min Year" value="${data.minYear || ''}" class="term-range-min block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                <span>-</span>
+                <input type="number" placeholder="Max Year" value="${data.maxYear || ''}" class="term-range-max block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                <span>-></span>
+                <input type="number" placeholder="Max Term" value="${data.maxTerm || ''}" class="term-range-value block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                ${showRemove ? '<button type="button" class="remove-term-range-btn text-red-500 hover:text-red-700">&times;</button>' : ''}
+            `;
+            container.appendChild(row);
+            if (showRemove) {
+                row.querySelector('.remove-term-range-btn').addEventListener('click', () => row.remove());
+            }
+        }
+        
+        function parseTermRule() {
+            const rule = { ranges: [] };
+            const rangeRows = document.querySelectorAll('#term-rule-container .term-range-row');
+            rangeRows.forEach(row => {
+                const minYear = parseInt(row.querySelector('.term-range-min').value) || 0;
+                const maxYear = parseInt(row.querySelector('.term-range-max').value) || 9999;
+                const maxTerm = parseInt(row.querySelector('.term-range-value').value) || 0;
+                rule.ranges.push({ minYear, maxYear, maxTerm });
+            });
+            return rule;
+        }
+
+        function populateTermRuleEditor(rule) {
+            const container = document.getElementById('term-rule-container');
+            container.innerHTML = '';
+            if (rule && rule.ranges && rule.ranges.length > 0) {
+                rule.ranges.forEach((range, index) => {
+                    addTermRangeRow(container, range, index > 0);
+                });
+            } else {
+                addTermRangeRow(container, {}, false);
+            }
+        }
+        
+        function evaluateTermRule(rule, vehicleYear) {
+            if (!rule || !rule.ranges) return 999; // Default to a high term if no rule
+            const matchingRange = rule.ranges.find(r => vehicleYear >= r.minYear && vehicleYear <= r.maxYear);
+            return matchingRange ? matchingRange.maxTerm : 0; // Return 0 if no range matches
+        }
+
+
+        // --- Local Storage Logic ---
+        function saveBankProfilesToLocalStorage() {
+            localStorage.setItem('dealValidatorBankProfiles', JSON.stringify(bankProfiles));
+        }
+
+        function loadBankProfilesFromLocalStorage() {
+            const savedProfiles = localStorage.getItem('dealValidatorBankProfiles');
+            if (savedProfiles) {
+                try {
+                    bankProfiles = JSON.parse(savedProfiles);
+                } catch(e) {
+                    console.error("Error parsing saved bank profiles:", e);
+                    bankProfiles = [];
+                }
+            }
+        }
+
+        // --- Initial Load ---
+        document.addEventListener('DOMContentLoaded', () => {
+            setDefaultDates();
+            loadBankProfilesFromLocalStorage();
+            renderCustomerDeals();
+            renderBankProfiles();
+            document.querySelectorAll('.rule-editor').forEach(editor => {
+                setupRuleEditor(editor);
+                const ruleName = editor.dataset.ruleName;
+                const container = editor.querySelector(`#range-container-${ruleName}`);
+                if (container) {
+                    addRangeRow(container, {}, false); // Add one initial row
+                    editor.querySelector('.add-range-btn').addEventListener('click', () => addRangeRow(container));
+                }
+            });
+            const termRuleContainer = document.getElementById('term-rule-container');
+            addTermRangeRow(termRuleContainer, {}, false);
+            document.getElementById('add-term-rule-btn').addEventListener('click', () => addTermRangeRow(termRuleContainer));
+
+            vehicleTypeToggle.addEventListener('change', () => {
+                const isNew = vehicleTypeToggle.checked;
+                rebateSection.classList.toggle('disabled-section', !isNew);
+                rebateInput.disabled = !isNew;
+                if (!isNew) {
+                    rebateInput.value = '0';
+                }
+                
+                if (isNew) {
+                    bookValueLabel.textContent = "2. Invoice ($)";
+                    bookValueRetailLabel.textContent = "3. MSRP ($)";
+                } else {
+                    bookValueLabel.textContent = "2. Book Value ($)";
+                    bookValueRetailLabel.textContent = "3. Retail Book Value ($)";
+                }
+
+                updateAllLiveCalculations();
+            });
+            // Trigger change on load to set initial state
+            vehicleTypeToggle.dispatchEvent(new Event('change'));
+            
+            document.getElementById('enforceMinAmountFor84').addEventListener('change', (e) => {
+                document.getElementById('minAmountFor84Container').classList.toggle('hidden', !e.target.checked);
+            });
+            
+            resetValidationBtn.addEventListener('click', () => {
+                 validationOutput.innerHTML = '<p class="text-gray-500">Click the button above to validate the current deal against all saved bank profiles.</p>';
+            });
+        });
+
+    </script>
+</body>
+</html>
