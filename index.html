@@ -23,7 +23,7 @@
             scrollbar-width: none;
         }
         .modal-loader {
-            position: absolute; 
+            position: absolute;
             top: 0;
             left: 0;
             width: 100%;
@@ -107,10 +107,10 @@
                     </div>
                 </div>
             </div>
-            
+
             <form id="customerProfileForm" class="space-y-6">
                 <input type="hidden" id="customerDealId">
-                
+
                 <!-- Deal Information -->
                 <div class="p-4 border border-gray-200 rounded-lg">
                      <h3 class="text-lg font-medium text-gray-800 mb-2">Deal Information</h3>
@@ -157,7 +157,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- Financial Details -->
                 <div class="p-4 border border-gray-200 rounded-lg">
                     <h3 class="text-lg font-medium text-gray-800 mb-2">Financial Details</h3>
@@ -260,7 +260,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                  <div class="col-span-full flex gap-4">
                     <button type="submit"
                             class="flex-1 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
@@ -272,7 +272,7 @@
                     </button>
                 </div>
             </form>
-            
+
             <!-- Calculation Displays -->
             <div class="space-y-4 mt-6 mb-6">
                 <div class="p-4 bg-gray-50 border border-gray-200 rounded-lg text-center shadow-inner">
@@ -311,7 +311,7 @@
 
                 <form id="bankProfileForm" class="space-y-6">
                     <input type="hidden" id="bankProfileId">
-                    
+
                     <!-- General Information -->
                     <div class="p-4 border border-gray-200 rounded-lg">
                         <h3 class="text-lg font-medium text-gray-800 mb-2">1. General Information</h3>
@@ -621,7 +621,7 @@
             </button>
         </div>
     </div>
-    
+
     <!-- Paste & Parse Modal -->
     <div id="pasteParseModal" class="modal">
         <div class="modal-content">
@@ -652,7 +652,7 @@
     <script>
         // --- DOM Element References ---
         const dealInfoSection = document.getElementById('dealInformation');
-        const customerDealForm = document.getElementById('customerDealForm');
+        const customerDealForm = document.getElementById('customerProfileForm');
         const bankProfileForm = document.getElementById('bankProfileForm');
         const customerDealsList = document.getElementById('customerDealsList');
         const bankProfilesList = document.getElementById('bankProfilesList');
@@ -680,19 +680,19 @@
         const parseDealTextBtn = document.getElementById('parseDealTextBtn');
         const dealTextInput = document.getElementById('dealTextInput');
         const parseErrorDiv = document.getElementById('parseError');
-        
+
         closeGeminiModalBtn.onclick = () => geminiModal.classList.remove('show');
         pasteParseBtn.onclick = () => pasteParseModal.classList.add('show');
         closeParseModalBtn.onclick = () => pasteParseModal.classList.remove('show');
-        
+
         // --- Global State ---
         let customerDeals = [];
         let bankProfiles = [];
-        
+
         // --- Utility Functions ---
         function generateUniqueId() { return '_' + Math.random().toString(36).substr(2, 9); }
         function formatCurrency(amount) { return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount); }
-        
+
         function setDefaultDates() {
             const dealDateEl = document.getElementById('dealDate');
             const firstPaymentDateEl = document.getElementById('firstPaymentDate');
@@ -716,7 +716,7 @@
             const tireAndWheel = parseFloat(document.getElementById('tireAndWheel').value) || 0;
             const frontEndAdd = parseFloat(document.getElementById('frontEndAdd').value) || 0;
             const taxRate = parseFloat(document.getElementById('salesTaxRate').value) || 0;
-            
+
             let taxableBase = salePrice;
             if (!isRebateTaxable) {
                 taxableBase -= rebate;
@@ -726,7 +726,7 @@
             const calculatedTaxes = taxableAmount * (taxRate / 100);
             document.getElementById('taxes').value = calculatedTaxes.toFixed(2);
         }
-        
+
         function calculateCurrentFinancedAmount() {
             const salePrice = parseFloat(document.getElementById('salePrice').value) || 0;
             const rebate = parseFloat(document.getElementById('rebate').value) || 0;
@@ -757,20 +757,20 @@
 
             const diffTime = firstPaymentDate - today;
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            
+
             const oddDays = diffDays > 30 ? diffDays - 30 : 0;
             const dailyRate = (annualRate / 100) / 365;
 
             const oddDaysInterest = principal * dailyRate * oddDays;
             const adjustedPrincipal = principal + oddDaysInterest;
-            
+
             if (annualRate === 0) {
                 return adjustedPrincipal / termInMonths;
             }
 
             const monthlyRate = (annualRate / 12) / 100;
             const payment = adjustedPrincipal * (monthlyRate * Math.pow(1 + monthlyRate, termInMonths)) / (Math.pow(1 + monthlyRate, termInMonths) - 1);
-            
+
             return isNaN(payment) || !isFinite(payment) ? 0 : payment;
         }
 
@@ -778,18 +778,21 @@
             calculateAndDisplayTaxes();
             const amountFinanced = calculateCurrentFinancedAmount();
             amountFinancedValueEl.textContent = formatCurrency(amountFinanced);
-            
+
             const gap = parseFloat(document.getElementById('gap').value) || 0;
             const servicePlan = parseFloat(document.getElementById('servicePlan').value) || 0;
             const tireAndWheel = parseFloat(document.getElementById('tireAndWheel').value) || 0;
             const ltvLoanAmount = amountFinanced - gap - servicePlan - tireAndWheel;
             line5AmountValueEl.textContent = formatCurrency(ltvLoanAmount);
-            
+
+            const isNew = vehicleTypeToggle.checked;
             const bookValue = parseFloat(document.getElementById('bookValue').value) || 0;
             const bookValueRetail = parseFloat(document.getElementById('bookValueRetail').value) || 0;
-            
+
             let ltv = 0;
-            if (bookValue > 0) { ltv = (ltvLoanAmount / bookValue) * 100; }
+            // For "New" cars, LTV is based on MSRP (bookValueRetail). For "Used", it's based on Book Value (bookValue).
+            const primaryLtvBase = isNew ? bookValueRetail : bookValue;
+            if (primaryLtvBase > 0) { ltv = (ltvLoanAmount / primaryLtvBase) * 100; }
             ltvValueEl.textContent = `${ltv.toFixed(2)}%`;
 
             let retailLtv = 0;
@@ -831,16 +834,17 @@
 
         customerDealForm.addEventListener('submit', (event) => {
             event.preventDefault();
-            
+
             const id = document.getElementById('customerDealId').value;
             const dealData = {
                 id: id || generateUniqueId(),
+                isNew: vehicleTypeToggle.checked,
                 customerName: document.getElementById('customerName').value, vehicleYear: document.getElementById('vehicleYear').value, vehicleMake: document.getElementById('vehicleMake').value, vehicleModel: document.getElementById('vehicleModel').value, vehicleVin: document.getElementById('vehicleVin').value, vehicleMiles: document.getElementById('vehicleMiles').value,
                 creditScore: parseInt(document.getElementById('creditScore').value) || 0,
                 salePrice: parseFloat(document.getElementById('salePrice').value) || 0, bookValue: parseFloat(document.getElementById('bookValue').value) || 0, bookValueRetail: parseFloat(document.getElementById('bookValueRetail').value) || 0, moneyDown: parseFloat(document.getElementById('moneyDown').value) || 0, rebate: parseFloat(document.getElementById('rebate').value) || 0, isRebateTaxable: document.getElementById('isRebateTaxable').checked, term: parseInt(document.getElementById('term').value) || 0, annualInterestRate: parseFloat(document.getElementById('annualInterestRate').value) || 0, firstPaymentDate: document.getElementById('firstPaymentDate').value, salesTaxRate: parseFloat(document.getElementById('salesTaxRate').value) || 0, taxes: parseFloat(document.getElementById('taxes').value) || 0, docFee: parseFloat(document.getElementById('docFee').value) || 0, otherFees: parseFloat(document.getElementById('otherFees').value) || 0, tradeAllowance: parseFloat(document.getElementById('tradeAllowance').value) || 0, tradeOwed: parseFloat(document.getElementById('tradeOwed').value) || 0, gap: parseFloat(document.getElementById('gap').value) || 0, servicePlan: parseFloat(document.getElementById('servicePlan').value) || 0, tireAndWheel: parseFloat(document.getElementById('tireAndWheel').value) || 0, frontEndAdd: parseFloat(document.getElementById('frontEndAdd').value) || 0,
             };
             dealData.loanAmount = calculateCurrentFinancedAmount();
-            
+
             if (id) {
                 const index = customerDeals.findIndex(d => d.id === id);
                 customerDeals[index] = dealData;
@@ -851,7 +855,7 @@
             clearAllForms();
             renderCustomerDeals();
         });
-        
+
         function clearAllForms() {
             customerDealForm.reset();
             document.getElementById('customerDealId').value = '';
@@ -869,10 +873,28 @@
         window.editCustomerDeal = (id) => {
             const dealToEdit = customerDeals.find(deal => deal.id === id);
             if (dealToEdit) {
+                // Set the toggle first as it affects labels and calculations
+                vehicleTypeToggle.checked = dealToEdit.isNew || false;
+                vehicleTypeToggle.dispatchEvent(new Event('change'));
+
                 document.getElementById('customerDealId').value = dealToEdit.id;
                 document.getElementById('customerName').value = dealToEdit.customerName; document.getElementById('vehicleYear').value = dealToEdit.vehicleYear; document.getElementById('vehicleMake').value = dealToEdit.vehicleMake; document.getElementById('vehicleModel').value = dealToEdit.vehicleModel; document.getElementById('vehicleVin').value = dealToEdit.vehicleVin; document.getElementById('vehicleMiles').value = dealToEdit.vehicleMiles;
-                document.getElementById('creditScore').value = dealToEdit.creditScore; 
-                document.getElementById('salePrice').value = dealToEdit.salePrice; document.getElementById('bookValue').value = dealToEdit.bookValue; document.getElementById('bookValueRetail').value = dealToEdit.bookValueRetail; document.getElementById('moneyDown').value = dealToEdit.moneyDown; document.getElementById('rebate').value = dealToEdit.rebate; document.getElementById('isRebateTaxable').checked = dealToEdit.isRebateTaxable; document.getElementById('term').value = dealToEdit.term; document.getElementById('annualInterestRate').value = dealToEdit.annualInterestRate; document.getElementById('firstPaymentDate').value = dealToEdit.firstPaymentDate; document.getElementById('salesTaxRate').value = dealToEdit.salesTaxRate; document.getElementById('docFee').value = dealToEdit.docFee; document.getElementById('otherFees').value = dealToEdit.otherFees; document.getElementById('tradeAllowance').value = dealToEdit.tradeAllowance; document.getElementById('tradeOwed').value = dealToEdit.tradeOwed; document.getElementById('gap').value = dealToEdit.gap; document.getElementById('servicePlan').value = dealToEdit.servicePlan; document.getElementById('tireAndWheel').value = dealToEdit.tireAndWheel; document.getElementById('frontEndAdd').value = dealToEdit.frontEndAdd;
+                document.getElementById('creditScore').value = dealToEdit.creditScore;
+                document.getElementById('salePrice').value = dealToEdit.salePrice; document.getElementById('bookValue').value = dealToEdit.bookValue; document.getElementById('bookValueRetail').value = dealToEdit.bookValueRetail; document.getElementById('moneyDown').value = dealToEdit.moneyDown;
+                document.getElementById('rebate').value = dealToEdit.rebate;
+                document.getElementById('isRebateTaxable').checked = dealToEdit.isRebateTaxable;
+                document.getElementById('term').value = dealToEdit.term;
+                document.getElementById('annualInterestRate').value = dealToEdit.annualInterestRate;
+                document.getElementById('firstPaymentDate').value = dealToEdit.firstPaymentDate;
+                document.getElementById('salesTaxRate').value = dealToEdit.salesTaxRate;
+                document.getElementById('docFee').value = dealToEdit.docFee;
+                document.getElementById('otherFees').value = dealToEdit.otherFees;
+                document.getElementById('tradeAllowance').value = dealToEdit.tradeAllowance;
+                document.getElementById('tradeOwed').value = dealToEdit.tradeOwed;
+                document.getElementById('gap').value = dealToEdit.gap;
+                document.getElementById('servicePlan').value = dealToEdit.servicePlan;
+                document.getElementById('tireAndWheel').value = dealToEdit.tireAndWheel;
+                document.getElementById('frontEndAdd').value = dealToEdit.frontEndAdd;
                 window.scrollTo(0, 0);
                 updateAllLiveCalculations();
             }
@@ -882,9 +904,8 @@
             customerDeals = customerDeals.filter(d => d.id !== id);
             renderCustomerDeals();
         }
-        
+
         document.getElementById('clearCustomerForm').addEventListener('click', clearAllForms);
-        dealInfoSection.addEventListener('input', updateAllLiveCalculations);
         customerDealForm.addEventListener('input', updateAllLiveCalculations);
 
         // --- Bank Profile Logic ---
@@ -938,13 +959,13 @@
             }
             saveBankProfilesToLocalStorage();
             bankProfileForm.reset();
-            document.querySelectorAll('.rule-editor').forEach(setupRuleEditor); 
+            document.querySelectorAll('.rule-editor').forEach(setupRuleEditor);
             document.getElementById('term-rule-container').innerHTML = '';
             addTermRangeRow(document.getElementById('term-rule-container'), {}, false);
             document.getElementById('bankProfileId').value = '';
             renderBankProfiles();
         });
-        
+
         window.editBankProfile = (id) => {
             const bankToEdit = bankProfiles.find(bank => bank.id === id);
             if (bankToEdit) {
@@ -953,7 +974,7 @@
                 document.getElementById('enforceMinAmountFor84').checked = bankToEdit.minAmountFor84 !== null;
                 document.getElementById('minAmountFor84').value = bankToEdit.minAmountFor84 || '';
                 document.getElementById('minAmountFor84Container').classList.toggle('hidden', !document.getElementById('enforceMinAmountFor84').checked);
-                
+
                 document.getElementById('maxLtvValue').value = bankToEdit.maxLtv.value;
                 document.getElementById('maxLtvType').value = bankToEdit.maxLtv.type;
                 populateTermRuleEditor(bankToEdit.maxTermRule);
@@ -966,25 +987,26 @@
                  window.scrollTo(0, 0);
             }
         }
-        
+
         window.deleteBankProfile = (id) => {
             bankProfiles = bankProfiles.filter(b => b.id !== id);
             saveBankProfilesToLocalStorage();
             renderBankProfiles();
         }
-        
-        document.getElementById('clearBankForm').addEventListener('click', () => { 
-            bankProfileForm.reset(); 
+
+        document.getElementById('clearBankForm').addEventListener('click', () => {
+            bankProfileForm.reset();
             document.querySelectorAll('.rule-editor').forEach(setupRuleEditor);
             document.getElementById('term-rule-container').innerHTML = '';
             addTermRangeRow(document.getElementById('term-rule-container'), {}, false);
-            document.getElementById('bankProfileId').value = ''; 
+            document.getElementById('bankProfileId').value = '';
         });
 
         // --- Validation Logic & Gemini ---
         validateDealBtn.addEventListener('click', () => {
             const currentDeal = {
                 id: 'current',
+                isNew: vehicleTypeToggle.checked,
                 customerName: document.getElementById('customerName').value, vehicleYear: parseInt(document.getElementById('vehicleYear').value) || 0, vehicleMake: document.getElementById('vehicleMake').value, vehicleModel: document.getElementById('vehicleModel').value, vehicleVin: document.getElementById('vehicleVin').value, vehicleMiles: document.getElementById('vehicleMiles').value,
                 creditScore: parseInt(document.getElementById('creditScore').value) || 0,
                 salePrice: parseFloat(document.getElementById('salePrice').value) || 0, bookValue: parseFloat(document.getElementById('bookValue').value) || 0, bookValueRetail: parseFloat(document.getElementById('bookValueRetail').value) || 0, moneyDown: parseFloat(document.getElementById('moneyDown').value) || 0, rebate: parseFloat(document.getElementById('rebate').value) || 0, isRebateTaxable: document.getElementById('isRebateTaxable').checked, term: parseInt(document.getElementById('term').value) || 0, annualInterestRate: parseFloat(document.getElementById('annualInterestRate').value) || 0, firstPaymentDate: document.getElementById('firstPaymentDate').value, salesTaxRate: parseFloat(document.getElementById('salesTaxRate').value) || 0, taxes: parseFloat(document.getElementById('taxes').value) || 0, docFee: parseFloat(document.getElementById('docFee').value) || 0, otherFees: parseFloat(document.getElementById('otherFees').value) || 0, tradeAllowance: parseFloat(document.getElementById('tradeAllowance').value) || 0, tradeOwed: parseFloat(document.getElementById('tradeOwed').value) || 0, gap: parseFloat(document.getElementById('gap').value) || 0, servicePlan: parseFloat(document.getElementById('servicePlan').value) || 0, tireAndWheel: parseFloat(document.getElementById('tireAndWheel').value) || 0, frontEndAdd: parseFloat(document.getElementById('frontEndAdd').value) || 0,
@@ -992,7 +1014,7 @@
             currentDeal.loanAmount = calculateCurrentFinancedAmount();
 
             validationOutput.innerHTML = '';
-            
+
             if (bankProfiles.length === 0) {
                 validationOutput.innerHTML = '<p class="text-gray-500">No bank profiles have been saved to validate against.</p>';
                 return;
@@ -1002,7 +1024,7 @@
                 const validationResults = validateDealAgainstBank(currentDeal, bankProfile);
                 const resultCard = document.createElement('div');
                 resultCard.className = `p-4 rounded-lg border-2 ${validationResults.isValid ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50'}`;
-                
+
                 const header = document.createElement('h4');
                 header.className = `font-bold text-lg mb-2 ${validationResults.isValid ? 'text-green-800' : 'text-red-800'}`;
                 header.textContent = `${bankProfile.bankName}: ${validationResults.isValid ? '✅ Approved' : '❌ Rejected'}`;
@@ -1038,21 +1060,31 @@
             const results = { isValid: true, messages: [] };
             const line5Amount = customerDeal.loanAmount - customerDeal.gap - customerDeal.servicePlan - customerDeal.tireAndWheel;
             const backendAmount = customerDeal.gap + customerDeal.servicePlan + customerDeal.tireAndWheel + customerDeal.frontEndAdd;
-            
+
             // Customer & Loan Limits
-            
+
             const maxTermAllowed = evaluateTermRule(bankProfile.maxTermRule, customerDeal.vehicleYear);
             if (customerDeal.term > maxTermAllowed) { results.isValid = false; results.messages.push(`<span class="text-red-600">❌ Term (${customerDeal.term}mo) exceeds max of ${maxTermAllowed}mo for a ${customerDeal.vehicleYear} vehicle.</span>`); } else { results.messages.push(`<span class="text-green-600">✅ Term (${customerDeal.term}mo) is within limit.</span>`); }
-            
+
             if (bankProfile.minAmountFor84 && customerDeal.term === 84 && customerDeal.loanAmount < bankProfile.minAmountFor84) {
                  results.isValid = false; results.messages.push(`<span class="text-red-600">❌ Amount Financed (${formatCurrency(customerDeal.loanAmount)}) is below the minimum of ${formatCurrency(bankProfile.minAmountFor84)} for an 84-month term.</span>`);
             } else {
                  results.messages.push(`<span class="text-green-600">✅ Amount Financed meets term requirement.</span>`);
             }
-            
+
             // LTV Limits
-            const ltvBaseValue = bankProfile.maxLtv.type === 'bookValueRetail' ? customerDeal.bookValueRetail : customerDeal.bookValue;
-            const ltvBaseType = bankProfile.maxLtv.type === 'bookValueRetail' ? 'Retail Book Value' : 'Book Value';
+            let ltvBaseValue;
+            let ltvBaseType;
+            if (customerDeal.isNew) {
+                // For new cars, LTV is always based on MSRP (stored in bookValueRetail)
+                ltvBaseValue = customerDeal.bookValueRetail;
+                ltvBaseType = 'MSRP';
+            } else {
+                // For used cars, respect the bank's profile setting
+                ltvBaseValue = bankProfile.maxLtv.type === 'bookValueRetail' ? customerDeal.bookValueRetail : customerDeal.bookValue;
+                ltvBaseType = bankProfile.maxLtv.type === 'bookValueRetail' ? 'Retail Book Value' : 'Book Value';
+            }
+
             if (ltvBaseValue > 0) {
                 const ltv = (line5Amount / ltvBaseValue) * 100;
                 if (ltv > bankProfile.maxLtv.value) { results.isValid = false; results.messages.push(`<span class="text-red-600">❌ LTV (${ltv.toFixed(2)}%) exceeds bank's max of ${bankProfile.maxLtv.value}% of ${ltvBaseType}.</span>`); } else { results.messages.push(`<span class="text-green-600">✅ LTV (${ltv.toFixed(2)}%) is within max of ${bankProfile.maxLtv.value}%.</span>`); }
@@ -1063,26 +1095,26 @@
                 const maxServicePlanAllowed = evaluateRule(bankProfile.maxServicePlan, customerDeal);
                 if (customerDeal.servicePlan > maxServicePlanAllowed) { results.isValid = false; results.messages.push(`<span class="text-red-600">❌ Service Plan (${formatCurrency(customerDeal.servicePlan)}) exceeds max of ${formatCurrency(maxServicePlanAllowed)}.</span>`); } else { results.messages.push(`<span class="text-green-600">✅ Service Plan is within limit.</span>`); }
             }
-            
+
             if (!bankProfile.maxTireAndWheel.referToBackend) {
                 const maxTireAndWheelAllowed = evaluateRule(bankProfile.maxTireAndWheel, customerDeal);
                 if (customerDeal.tireAndWheel > maxTireAndWheelAllowed) { results.isValid = false; results.messages.push(`<span class="text-red-600">❌ Tire & Wheel (${formatCurrency(customerDeal.tireAndWheel)}) exceeds max of ${formatCurrency(maxTireAndWheelAllowed)}.</span>`); } else { results.messages.push(`<span class="text-green-600">✅ Tire & Wheel is within limit.</span>`); }
             }
-            
+
             if (!bankProfile.maxGap.referToBackend) {
                 const maxGapAllowed = evaluateRule(bankProfile.maxGap, customerDeal);
                 if (customerDeal.gap > maxGapAllowed) { results.isValid = false; results.messages.push(`<span class="text-red-600">❌ GAP (${formatCurrency(customerDeal.gap)}) exceeds max of ${formatCurrency(maxGapAllowed)}.</span>`); } else { results.messages.push(`<span class="text-green-600">✅ GAP is within limit.</span>`); }
             }
-            
+
             const maxBackendAllowed = evaluateRule(bankProfile.maxBackend, customerDeal);
             if (backendAmount > maxBackendAllowed) { results.isValid = false; results.messages.push(`<span class="text-red-600">❌ Total Backend (${formatCurrency(backendAmount)}) exceeds max of ${formatCurrency(maxBackendAllowed)}.</span>`); } else { results.messages.push(`<span class="text-green-600">✅ Total Backend is within limit.</span>`); }
-            
+
             return results;
         }
 
         // --- Gemini API Functions ---
         const apiKey = ""; // This will be handled by the environment
-        
+
         async function generateSummary(deal) {
             geminiModal.classList.add('show');
             modalLoader.style.display = 'flex';
@@ -1094,7 +1126,7 @@
 
             **Customer:** ${deal.customerName}
             **Vehicle:** ${deal.vehicleYear} ${deal.vehicleMake} ${deal.vehicleModel}
-            
+
             **Financials:**
             - Sale Price: ${formatCurrency(deal.salePrice)}
             - Rebate: ${formatCurrency(deal.rebate)}
@@ -1111,7 +1143,7 @@
             - Interest Rate: ${deal.annualInterestRate}%
             - Estimated Monthly Payment: ${formatCurrency(monthlyPayment)}
             `;
-            
+
             let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
             const payload = { contents: chatHistory };
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
@@ -1136,26 +1168,26 @@
                 geminiModalContent.style.display = 'block';
             }
         }
-        
+
         async function suggestFix(deal, bank, rejectionReasons) {
             geminiModal.classList.add('show');
             modalLoader.style.display = 'flex';
             geminiModalContent.style.display = 'none';
 
             const prompt = `A car deal was rejected. Here is the deal data, the bank's rules, and the reasons for rejection.
-            
+
             **Deal Data:**
             ${JSON.stringify(deal, null, 2)}
-            
+
             **Bank Rules:**
             ${JSON.stringify(bank, null, 2)}
-            
+
             **Rejection Reasons:**
             ${rejectionReasons.join('\n')}
-            
+
             Please provide a few specific, actionable suggestions to make this deal meet the bank's criteria. Focus on the smallest possible changes to fields like 'moneyDown', 'salePrice', 'gap', or 'servicePlan'.
             `;
-            
+
             let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
             const payload = { contents: chatHistory };
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
@@ -1180,7 +1212,7 @@
                 geminiModalContent.style.display = 'block';
             }
         }
-        
+
         // --- Rule Editor Logic ---
         function setupRuleEditor(editorElement) {
             const typeSelector = editorElement.querySelector('.rule-type-selector');
@@ -1198,10 +1230,10 @@
                 if (comparisonFields) comparisonFields.classList.toggle('hidden', selectedType !== 'greaterOf' && selectedType !== 'lesserOf');
                 if (rangeFields) rangeFields.classList.toggle('hidden', selectedType !== 'range');
             }
-            
+
             if (typeSelector) {
                 typeSelector.addEventListener('change', updateVisibility);
-                updateVisibility(); 
+                updateVisibility();
             }
 
             if (referCheckbox) {
@@ -1248,21 +1280,21 @@
             }
             return rule;
         }
-        
+
         function populateRuleEditor(ruleName, rule) {
             const editor = document.querySelector(`.rule-editor[data-rule-name="${ruleName}"]`);
-            if (!rule) { 
+            if (!rule) {
                 editor.querySelector('.rule-type-selector').value = 'fixed';
                 if(editor.querySelector('.rule-value-fixed')) editor.querySelector('.rule-value-fixed').value = '';
                 if(editor.querySelector('.refer-to-backend-checkbox')) editor.querySelector('.refer-to-backend-checkbox').checked = false;
                 setupRuleEditor(editor);
                 return;
             }
-            
+
              if ((ruleName === 'maxTireAndWheel' || ruleName === 'maxGap' || ruleName === 'maxServicePlan') && editor.querySelector('.refer-to-backend-checkbox')) {
                 editor.querySelector('.refer-to-backend-checkbox').checked = rule.referToBackend || false;
             }
-            
+
             editor.querySelector('.rule-type-selector').value = rule.type;
             if (rule.type === 'fixed') {
                 editor.querySelector('.rule-value-fixed').value = rule.value;
@@ -1288,7 +1320,7 @@
         }
 
         function evaluateRule(rule, deal) {
-            if (!rule) return Infinity; 
+            if (!rule) return Infinity;
 
             switch (rule.type) {
                 case 'fixed':
@@ -1329,7 +1361,7 @@
                 row.querySelector('.remove-range-btn').addEventListener('click', () => row.remove());
             }
         }
-        
+
         function addTermRangeRow(container, data = {}, showRemove = true) {
             const row = document.createElement('div');
             row.className = 'term-range-row flex items-center gap-2';
@@ -1346,7 +1378,7 @@
                 row.querySelector('.remove-term-range-btn').addEventListener('click', () => row.remove());
             }
         }
-        
+
         function parseTermRule() {
             const rule = { ranges: [] };
             const rangeRows = document.querySelectorAll('#term-rule-container .term-range-row');
@@ -1370,7 +1402,7 @@
                 addTermRangeRow(container, {}, false);
             }
         }
-        
+
         function evaluateTermRule(rule, vehicleYear) {
             if (!rule || !rule.ranges) return 999; // Default to a high term if no rule
             const matchingRange = rule.ranges.find(r => vehicleYear >= r.minYear && vehicleYear <= r.maxYear);
@@ -1421,7 +1453,7 @@
                 if (!isNew) {
                     rebateInput.value = '0';
                 }
-                
+
                 if (isNew) {
                     bookValueLabel.textContent = "2. Invoice ($)";
                     bookValueRetailLabel.textContent = "3. MSRP ($)";
@@ -1434,11 +1466,11 @@
             });
             // Trigger change on load to set initial state
             vehicleTypeToggle.dispatchEvent(new Event('change'));
-            
+
             document.getElementById('enforceMinAmountFor84').addEventListener('change', (e) => {
                 document.getElementById('minAmountFor84Container').classList.toggle('hidden', !e.target.checked);
             });
-            
+
             resetValidationBtn.addEventListener('click', () => {
                  validationOutput.innerHTML = '<p class="text-gray-500">Click the button above to validate the current deal against all saved bank profiles.</p>';
             });
